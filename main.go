@@ -22,6 +22,13 @@ import (
 
 var _ color.Color = (*colorful.Color)(nil)
 
+const (
+	canvasSize = 128
+	colorCount = 8
+	forceBlack = false
+	forceWhite = false
+)
+
 func main() {
 	if len(os.Args) < 2 || os.Args[1] == "--help" || os.Args[1] == "-h" {
 		fmt.Printf("Usage:\n  %s <image.ext>\n", os.Args[0])
@@ -35,13 +42,11 @@ func main() {
 		pPal = parsePalette(os.Args[2])
 	}
 
-	forceBlack := false
-	forceWhite := false
 	dX := uint(16)
 	_ = dX
 	sX := float32(0.25)
 	_ = sX
-	k := 8
+	k := colorCount
 
 	f, err := os.Open(input)
 	if err != nil {
@@ -54,7 +59,7 @@ func main() {
 		panic(err)
 	}
 
-	img = resize.Thumbnail(512, 512, img, resize.Lanczos3)
+	img = resize.Thumbnail(canvasSize, canvasSize, img, resize.Lanczos3)
 	bb := img.Bounds()
 
 	if pPal == nil {
@@ -92,12 +97,12 @@ func main() {
 
 	pos := 0
 	for _, col := range pPal {
-		size := float64(sizes[col]) / float64(width * height)
+		size := float64(sizes[col]) / float64(width*height)
 
 		var bbb image.Rectangle
 		if landscape {
 			blockW := int(size * float64(width))
-			bbb = image.Rect(pos, height, pos + blockW, width)
+			bbb = image.Rect(pos, height, pos+blockW, width)
 			pos += blockW
 		} else {
 			blockH := int(size * float64(height))
