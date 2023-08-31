@@ -7,11 +7,12 @@ import (
 	"image/draw"
 	_ "image/jpeg"
 	"image/png"
-	_ "image/png"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	_ "golang.org/x/image/webp"
 
 	"github.com/EdlinOrg/prominentcolor"
 	"github.com/edwvee/exiffix"
@@ -23,7 +24,7 @@ import (
 var _ color.Color = (*colorful.Color)(nil)
 
 const (
-	canvasSize = 128
+	canvasSize = 512
 	colorCount = 8
 	forceBlack = false
 	forceWhite = false
