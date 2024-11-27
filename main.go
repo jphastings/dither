@@ -28,6 +28,7 @@ const (
 	colorCount = 8
 	forceBlack = false
 	forceWhite = false
+	fixedWidthPalette = true
 )
 
 func main() {
@@ -68,9 +69,9 @@ func main() {
 	}
 
 	d := dither.NewDitherer(pPal)
-	//d.Mapper = dither.RandomNoiseGrayscale(-0.5, 0.5)
 	d.Mapper = dither.Bayer(dX, dX, sX) // Why not?
-	//d.Mapper = dither.PixelMapperFromMatrix(dither.ClusteredDot4x4, sX)
+	// d.Mapper = dither.RandomNoiseGrayscale(-0.5, 0.5)
+	// d.Mapper = dither.PixelMapperFromMatrix(dither.ClusteredDot4x4, sX)
 	//d.Matrix = dither.FloydSteinberg
 	//d.Matrix = dither.Atkinson
 
@@ -102,12 +103,22 @@ func main() {
 
 		var bbb image.Rectangle
 		if landscape {
-			blockW := int(size * float64(width))
-			bbb = image.Rect(pos, height, pos+blockW, width)
+			blockW := width / colorCount
+			if !fixedWidthPalette {
+				blockW = int(size * float64(width))
+			}
+
+			// Add colorCount to hieght to ensure that even if all divisions round down we still cover the full side with palette
+			bbb = image.Rect(pos, height, pos+blockW+colorCount, width)
 			pos += blockW
 		} else {
-			blockH := int(size * float64(height))
-			bbb = image.Rect(width, pos, height, pos+blockH)
+			blockH := height / colorCount
+			if !fixedWidthPalette {
+				blockH = int(size * float64(height))
+			}
+
+			// Add colorCount to width to ensure that even if all divisions round down we still cover the full side with palette
+			bbb = image.Rect(width, pos, height, pos+blockH+colorCount)
 			pos += blockH
 		}
 		draw.Draw(img2, bbb, &image.Uniform{C: col}, image.Point{}, draw.Src)
