@@ -24,12 +24,22 @@ import (
 var _ color.Color = (*colorful.Color)(nil)
 
 const (
-	canvasSize = 512
-	colorCount = 8
-	forceBlack = false
-	forceWhite = false
+	canvasSize        = 512
+	colorCount        = 8
 	fixedWidthPalette = true
 )
+
+var (
+	forceBlack = os.Getenv("FORCE_BLACK") == "t"
+	forceWhite = os.Getenv("FORCE_WHITE") == "t"
+)
+
+func check(in string, err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not process %s: %v\n", in, err)
+		os.Exit(1)
+	}
+}
 
 func main() {
 	if len(os.Args) < 2 || os.Args[1] == "--help" || os.Args[1] == "-h" {
@@ -38,6 +48,10 @@ func main() {
 	}
 	input := os.Args[1]
 	output := strings.TrimSuffix(input, filepath.Ext(input)) + ".dither.png"
+	if _, err := os.Stat(output); err == nil {
+		fmt.Fprintln(os.Stderr, output, "already exists.")
+		os.Exit(0)
+	}
 
 	var pPal color.Palette
 	if len(os.Args) >= 3 && os.Args[2][0] == '#' {
@@ -51,21 +65,18 @@ func main() {
 	k := colorCount
 
 	f, err := os.Open(input)
-	if err != nil {
-		panic(err)
-	}
+	check(input, err)
 	defer f.Close()
 
 	img, _, err := exiffix.Decode(f)
-	if err != nil {
-		panic(err)
-	}
+	check(input, err)
 
 	img = resize.Thumbnail(canvasSize, canvasSize, img, resize.Lanczos3)
 	bb := img.Bounds()
 
 	if pPal == nil {
-		pPal = makePalette(img, k, forceBlack, forceWhite)
+		pPal, err = makePalette(img, k, forceBlack, forceWhite)
+		check(input, err)
 	}
 
 	d := dither.NewDitherer(pPal)
@@ -125,14 +136,10 @@ func main() {
 	}
 
 	f3, err := os.Create(output)
-	if err != nil {
-		panic(err)
-	}
+	check(input, err)
 
 	err = png.Encode(f3, img2)
-	if err != nil {
-		panic(err)
-	}
+	check(input, err)
 }
 
 func parsePalette(str string) (pPal color.Palette) {
@@ -147,7 +154,7 @@ func parsePalette(str string) (pPal color.Palette) {
 	return pPal
 }
 
-func makePalette(img image.Image, k int, forceBlack, forceWhite bool) color.Palette {
+func makePalette(img image.Image, k int, forceBlack, forceWhite bool) (color.Palette, error) {
 	hX := 1.0
 	cX := 1.5
 	lX := 1.0
@@ -164,7 +171,7 @@ func makePalette(img image.Image, k int, forceBlack, forceWhite bool) color.Pale
 		prominentcolor.ArgumentLAB|prominentcolor.ArgumentNoCropping,
 		512, nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	cPal := make([]colorful.Color, k)
@@ -177,7 +184,7 @@ func makePalette(img image.Image, k int, forceBlack, forceWhite bool) color.Pale
 		}
 		col, ok := colorful.MakeColor(rgb)
 		if !ok {
-			panic("Couldn't transform colour!")
+			return nil, fmt.Errorf("couldn't transform colour")
 		}
 
 		h, c, l := col.Hcl()
@@ -196,15 +203,14 @@ func makePalette(img image.Image, k int, forceBlack, forceWhite bool) color.Pale
 		cPal = append(cPal, w)
 	}
 
-	fmt.Println("Colour string:")
 	var pPal color.Palette
 	for _, c := range sortColors(cPal) {
 		pPal = append(pPal, c)
-		fmt.Printf(c.Hex())
+		fmt.Printf("%s ", c.Hex())
 	}
 	fmt.Println()
 
-	return pPal
+	return pPal, nil
 }
 
 func sortColors(cs1 []colorful.Color) []colorful.Color {
